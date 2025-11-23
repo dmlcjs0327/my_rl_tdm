@@ -1,0 +1,21 @@
+name: tdm
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch>=2.0.0
+  - torchvision
+  - torchaudio
+  - numpy>=1.24.0
+  - matplotlib>=3.7.0
+  - pyyaml>=6.0
+  - pip
+  - pip:
+    - gymnasium>=0.28.0
+    - tensorboard>=2.13.0
+    - tqdm>=4.65.0
+    - mujoco>=2.3.0
+    - imageio>=2.25.0
+

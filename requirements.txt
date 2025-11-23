@@ -1,0 +1,17 @@
+# Core dependencies
+torch>=2.0.0
+numpy>=1.24.0
+gymnasium>=0.28.0
+pyyaml>=6.0
+
+# Visualization and logging
+tensorboard>=2.13.0
+matplotlib>=3.7.0
+
+# MuJoCo environments (optional, for robotics tasks)
+# mujoco>=2.3.0  # Uncomment if using MuJoCo environments
+# imageio>=2.25.0  # Required for MuJoCo rendering
+
+# Additional utilities
+tqdm>=4.65.0
+

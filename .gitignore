@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Conda
+.conda/
+
+# PyTorch
+*.pth
+*.pt
+*.pkl
+
+# Logs and outputs
+logs/
+*.log
+tensorboard/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Config files (keep template)
+config_*.yaml
+!config.yaml
+
+# Test outputs
+test_outputs/
+*.png
+*.jpg
+*.gif
+
+# Temporary files
+*.tmp
+temp/
+

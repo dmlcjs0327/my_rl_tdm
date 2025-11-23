@@ -1,0 +1,107 @@
+# Temporal Difference Models (TDM) Configuration
+
+# Environment settings
+env:
+  name: "Reacher-v5"  # Available: Reacher-v5, Pusher-v5, HalfCheetah-v5, Ant-v5
+  max_episode_steps: 50
+  
+# Task-specific settings
+task:
+  # For reaching tasks (Reacher, Pusher)
+  goal_space: "end_effector"  # or "full_state"
+  
+  # For locomotion tasks (Cheetah, Ant)
+  # Cheetah: goal is velocity
+  # Ant: goal is position or position+velocity
+  locomotion_task_type: "position"  # "position" or "position_velocity"
+  
+  # Goal sampling
+  goal_sampling_strategy: "future"  # "future", "buffer", or "uniform"
+  
+  # For ant position+velocity task
+  position_weight: 0.1
+  velocity_weight: 0.9
+
+# TDM hyperparameters
+tdm:
+  tau_max: 25  # Maximum planning horizon
+  distance_metric: "L1"  # "L1" or "L2"
+  vectorized_supervision: true  # Use vectorized supervision for better performance
+  reward_scale: 1.0
+  
+# Network architecture
+network:
+  actor:
+    hidden_sizes: [300, 300]
+    activation: "relu"
+    output_activation: "tanh"
+    
+  critic:
+    hidden_sizes: [300, 300]
+    activation: "relu"
+    
+# Training hyperparameters
+training:
+  total_timesteps: 1000000
+  learning_rate_actor: 0.0001
+  learning_rate_critic: 0.001
+  batch_size: 128
+  buffer_size: 1000000
+  updates_per_step: 10  # Number of gradient updates per environment step
+  polyak: 0.999  # Soft target update coefficient
+  
+  # Learning rate decay (prevents performance collapse)
+  use_lr_decay: false  # Enable learning rate decay
+  lr_decay_rate: 0.9995  # Decay rate per decay_steps
+  lr_decay_steps: 10000  # Decay every N steps
+  min_lr_actor: 0.00001  # Minimum learning rate for actor
+  min_lr_critic: 0.0001  # Minimum learning rate for critic
+  
+  # Gradient clipping (prevents gradient explosion)
+  grad_clip: 1.0  # Clip gradients to this value (None to disable)
+  
+  # Exploration
+  noise_type: "normal"
+  noise_std: 0.2
+  noise_decay: 0.9995
+  noise_decay_steps: 100000
+  min_noise_std: 0.01  # Minimum exploration noise (prevents over-exploitation)
+  
+  # Evaluation and early stopping
+  eval_frequency: 5000  # Evaluate every N steps
+  eval_episodes: 10
+  patience: null  # Early stopping patience (null to disable, e.g., 10 means stop after 10 evals without improvement)
+  
+  # Curriculum Learning
+  use_curriculum: true  # Enable curriculum learning
+  curriculum:
+    initial_difficulty: 0.1  # 초기 난이도 (0.0 ~ 1.0)
+    final_difficulty: 1.0  # 최종 난이도 (0.0 ~ 1.0)
+    type: "distance"  # "distance" or "complexity"
+    schedule: "linear"  # "linear", "exponential", "step"
+  
+  # Warm-up Period
+  use_warmup: true  # Enable warm-up period
+  warmup:
+    steps: 10000  # Warm-up 기간 (스텝 수)
+    initial_noise_std: 0.5  # 초기 노이즈 표준편차
+    final_noise_std: 0.2  # 최종 노이즈 표준편차
+    initial_lr_multiplier: 0.1  # 초기 학습률 배수
+    final_lr_multiplier: 1.0  # 최종 학습률 배수
+  
+# Policy extraction (MPC)
+mpc:
+  method: "direct"  # "direct" or "optimization"
+  horizon: 15  # Planning horizon for MPC
+  num_samples: 10000  # For stochastic optimization
+  
+# Logging
+logging:
+  log_dir: "./logs"
+  tensorboard: true
+  save_frequency: 10000  # Save model every N steps
+  log_frequency: 100  # Log metrics every N steps
+
+# Seed for reproducibility
+seed: 42
+
