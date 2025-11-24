@@ -35,15 +35,33 @@ class ReplayBuffer:
     
     def sample(self, batch_size):
         """Sample batch of transitions"""
+        # Safety check: ensure buffer has enough samples
+        if self.size == 0:
+            raise ValueError("Cannot sample from empty replay buffer")
+        if self.size < batch_size:
+            # If buffer is smaller than batch_size, sample with replacement
+            batch_size = self.size
+        
         idx = np.random.randint(0, self.size, size=batch_size)
         
-        return (
-            torch.FloatTensor(self.state[idx]),
-            torch.FloatTensor(self.action[idx]),
-            torch.FloatTensor(self.next_state[idx]),
-            torch.FloatTensor(self.reward[idx]),
-            torch.FloatTensor(self.done[idx])
-        )
+        # Safety check: ensure no NaN or Inf values
+        states = torch.FloatTensor(self.state[idx])
+        actions = torch.FloatTensor(self.action[idx])
+        next_states = torch.FloatTensor(self.next_state[idx])
+        rewards = torch.FloatTensor(self.reward[idx])
+        dones = torch.FloatTensor(self.done[idx])
+        
+        # Check for NaN/Inf and replace with zeros if found
+        if torch.isnan(states).any() or torch.isinf(states).any():
+            states = torch.nan_to_num(states, nan=0.0, posinf=0.0, neginf=0.0)
+        if torch.isnan(actions).any() or torch.isinf(actions).any():
+            actions = torch.nan_to_num(actions, nan=0.0, posinf=0.0, neginf=0.0)
+        if torch.isnan(next_states).any() or torch.isinf(next_states).any():
+            next_states = torch.nan_to_num(next_states, nan=0.0, posinf=0.0, neginf=0.0)
+        if torch.isnan(rewards).any() or torch.isinf(rewards).any():
+            rewards = torch.nan_to_num(rewards, nan=0.0, posinf=0.0, neginf=0.0)
+        
+        return (states, actions, next_states, rewards, dones)
     
     def sample_trajectory(self, batch_size):
         """

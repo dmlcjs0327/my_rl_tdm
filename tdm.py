@@ -97,9 +97,14 @@ class TDM:
         self.grad_clip = config['training'].get('grad_clip', None)
         
         # Replay buffer
+        buffer_size = config['training']['buffer_size']
+        # Safety check: ensure buffer size is reasonable
+        if buffer_size < self.batch_size * 10:
+            print(f"Warning: Buffer size ({buffer_size}) is too small compared to batch size ({self.batch_size})")
+            print(f"  Recommended: buffer_size >= batch_size * 10")
         self.replay_buffer = TDMBuffer(
             state_dim, action_dim, goal_dim,
-            config['training']['buffer_size'],
+            buffer_size,
             config['task']['goal_sampling_strategy'],
             self.tau_max
         )
@@ -126,6 +131,16 @@ class TDM:
         Returns:
             action: selected action
         """
+        # Safety check: ensure inputs are valid
+        state = np.asarray(state, dtype=np.float32)
+        goal = np.asarray(goal, dtype=np.float32)
+        
+        # Check for NaN/Inf in inputs
+        if np.isnan(state).any() or np.isinf(state).any():
+            state = np.nan_to_num(state, nan=0.0, posinf=0.0, neginf=0.0)
+        if np.isnan(goal).any() or np.isinf(goal).any():
+            goal = np.nan_to_num(goal, nan=0.0, posinf=0.0, neginf=0.0)
+        
         state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         goal_tensor = torch.FloatTensor(goal).unsqueeze(0).to(self.device)
         tau_tensor = torch.FloatTensor([tau]).unsqueeze(0).to(self.device)
@@ -135,6 +150,10 @@ class TDM:
             action = self.actor(state_tensor, goal_tensor, tau_tensor)
         
         action = action.cpu().numpy()[0]
+        
+        # Safety check: ensure action is valid
+        if np.isnan(action).any() or np.isinf(action).any():
+            action = np.nan_to_num(action, nan=0.0, posinf=0.0, neginf=0.0)
         
         # Add noise for exploration
         if add_noise:
@@ -239,13 +258,36 @@ class TDM:
             distance = self.compute_distance(predicted_states, goals)
             loss = F.mse_loss(distance, -target_q)
         
+        # Safety check: ensure loss is valid
+        if torch.isnan(loss) or torch.isinf(loss):
+            print(f"Warning: Invalid critic loss detected (NaN/Inf): {loss.item()}")
+            return None
+        
         # Optimize critic
         self.critic_optimizer.zero_grad()
         loss.backward()
         
+        # Check for NaN/Inf gradients before clipping
+        has_invalid_grad = False
+        for param in self.critic.parameters():
+            if param.grad is not None:
+                if torch.isnan(param.grad).any() or torch.isinf(param.grad).any():
+                    has_invalid_grad = True
+                    print(f"Warning: Invalid gradient detected in critic, skipping update")
+                    break
+        
+        if has_invalid_grad:
+            self.critic_optimizer.zero_grad()  # Clear invalid gradients
+            return None
+        
         # Gradient clipping for stability
         if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
+            # Check if gradient norm is valid
+            if torch.isnan(grad_norm) or torch.isinf(grad_norm):
+                print(f"Warning: Invalid gradient norm detected: {grad_norm.item()}")
+                self.critic_optimizer.zero_grad()
+                return None
         
         self.critic_optimizer.step()
         
@@ -271,23 +313,60 @@ class TDM:
         # Maximize Q-values (minimize negative Q-values)
         loss = -q_values.mean()
         
+        # Safety check: ensure loss is valid
+        if torch.isnan(loss) or torch.isinf(loss):
+            print(f"Warning: Invalid actor loss detected (NaN/Inf): {loss.item()}")
+            return None
+        
         # Optimize actor
         self.actor_optimizer.zero_grad()
         loss.backward()
         
+        # Check for NaN/Inf gradients before clipping
+        has_invalid_grad = False
+        for param in self.actor.parameters():
+            if param.grad is not None:
+                if torch.isnan(param.grad).any() or torch.isinf(param.grad).any():
+                    has_invalid_grad = True
+                    print(f"Warning: Invalid gradient detected in actor, skipping update")
+                    break
+        
+        if has_invalid_grad:
+            self.actor_optimizer.zero_grad()  # Clear invalid gradients
+            return None
+        
         # Gradient clipping for stability
         if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+            grad_norm = torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+            # Check if gradient norm is valid
+            if torch.isnan(grad_norm) or torch.isinf(grad_norm):
+                print(f"Warning: Invalid gradient norm detected: {grad_norm.item()}")
+                self.actor_optimizer.zero_grad()
+                return None
         
         self.actor_optimizer.step()
         
         return loss.item()
     
     def update_target_networks(self):
-        """Soft update target networks"""
+        """Soft update target networks with safety checks"""
         for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+            # Safety check: ensure parameters are valid
+            if torch.isnan(param.data).any() or torch.isinf(param.data).any():
+                print("Warning: Invalid parameter detected in critic, skipping target update")
+                return
+            if torch.isnan(target_param.data).any() or torch.isinf(target_param.data).any():
+                print("Warning: Invalid parameter detected in critic_target, skipping target update")
+                return
+            
+            # Soft update
             target_param.data.copy_(self.polyak * target_param.data + 
                                    (1 - self.polyak) * param.data)
+            
+            # Final safety check after update
+            if torch.isnan(target_param.data).any() or torch.isinf(target_param.data).any():
+                print("Warning: Invalid parameter after target update, reverting")
+                target_param.data.copy_(param.data)  # Use current param as fallback
     
     def train_step(self):
         """Perform one training step"""

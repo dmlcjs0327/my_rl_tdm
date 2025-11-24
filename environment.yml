@@ -1,21 +1,23 @@
 name: tdm
 channels:
-  - pytorch
   - conda-forge
   - defaults
 dependencies:
   - python=3.9
-  - pytorch>=2.0.0
-  - torchvision
-  - torchaudio
+  # PyTorch는 GPU 버전을 사용하려면 별도로 설치하세요
+  # CPU 버전: conda install pytorch torchvision torchaudio cpuonly -c pytorch
+  # GPU 버전 (CUDA 11.8): conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+  # GPU 버전 (CUDA 12.1): conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
   - numpy>=1.24.0
   - matplotlib>=3.7.0
   - pyyaml>=6.0
   - pip
   - pip:
     - gymnasium>=0.28.0
+    - gymnasium[mujoco]>=0.28.0
     - tensorboard>=2.13.0
     - tqdm>=4.65.0
     - mujoco>=2.3.0
     - imageio>=2.25.0
-
+    - imageio-ffmpeg>=0.4.8
+    - psutil>=5.9.0  # 시스템 자원 확인용 (선택적, 없어도 동작)

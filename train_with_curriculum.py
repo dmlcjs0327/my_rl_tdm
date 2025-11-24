@@ -13,11 +13,12 @@ from tdm import TDM
 from env_wrapper import TDMEnvWrapper, GoalSampler
 from mpc_planner import TaskSpecificPlanner
 from curriculum_learning import CurriculumLearning, WarmUpPeriod
+from policy_collapse_detector import PolicyCollapseDetector
 
 
 def load_config(config_path='config.yaml'):
     """Load configuration from YAML file"""
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
     return config
 
@@ -169,8 +170,8 @@ def train(config, experiment_id=None, log_dir_base=None):
         writer = SummaryWriter(log_dir)
     
     # Save config
-    with open(os.path.join(log_dir, 'config.yaml'), 'w') as f:
-        yaml.dump(config, f)
+    with open(os.path.join(log_dir, 'config.yaml'), 'w', encoding='utf-8') as f:
+        yaml.dump(config, f, allow_unicode=True)
     
     # Training loop
     total_steps = 0
@@ -183,6 +184,19 @@ def train(config, experiment_id=None, log_dir_base=None):
     best_model_path = None
     patience = config['training'].get('patience', None)
     patience_counter = 0
+    
+    # Policy Collapse Detector
+    use_collapse_detection = config['training'].get('detect_policy_collapse', False)
+    collapse_detector = None
+    if use_collapse_detection:
+        collapse_config = config['training'].get('collapse_detection', {})
+        collapse_detector = PolicyCollapseDetector(
+            window_size=collapse_config.get('window_size', 5),
+            collapse_threshold=collapse_config.get('collapse_threshold', 0.3),
+            min_evaluations=collapse_config.get('min_evaluations', 3),
+            stability_threshold=collapse_config.get('stability_threshold', 0.5)
+        )
+        print("Policy Collapse Detection: Enabled")
     
     obs, info = env.reset()
     initial_state = obs.copy()
@@ -314,11 +328,30 @@ def train(config, experiment_id=None, log_dir_base=None):
                     patience_counter += 1
                     print(f"  Best distance: {best_eval_distance:.4f} (patience: {patience_counter}/{patience if patience else 'N/A'})")
                 
-                # Early stopping
+                # Policy Collapse Detection
+                if collapse_detector:
+                    collapse_info = collapse_detector.update(
+                        eval_results['mean_distance'],
+                        eval_results['success_rate']
+                    )
+                    
+                    if collapse_info['is_collapsed']:
+                        print(f"\n⚠️  POLICY COLLAPSE DETECTED!")
+                        print(f"   Reason: {collapse_info['reason']}")
+                        print(f"   Loading best model from {best_model_path}")
+                        if best_model_path and os.path.exists(best_model_path):
+                            tdm.load(best_model_path)
+                        print(f"   Stopping training early due to policy collapse")
+                        break
+                    elif collapse_info['reason']:
+                        print(f"  ⚠️  Warning: {collapse_info['reason']}")
+                
+                # Early stopping (patience-based)
                 if patience is not None and patience_counter >= patience:
                     print(f"\nEarly stopping: No improvement for {patience} evaluations")
                     print(f"Loading best model from {best_model_path}")
-                    tdm.load(best_model_path)
+                    if best_model_path and os.path.exists(best_model_path):
+                        tdm.load(best_model_path)
                     break
                 
                 if config['logging']['tensorboard']:

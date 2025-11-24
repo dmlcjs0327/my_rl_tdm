@@ -37,6 +37,18 @@ class Actor(nn.Module):
         
         self.network = nn.Sequential(*layers)
         
+        # Initialize weights properly for stable training
+        self._initialize_weights()
+    
+    def _initialize_weights(self):
+        """Initialize network weights using Xavier/He initialization"""
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                # Xavier uniform initialization for tanh output
+                nn.init.xavier_uniform_(module.weight, gain=1.0)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0.0)
+        
     def forward(self, state, goal, tau):
         """
         Args:
@@ -83,6 +95,18 @@ class TDMCritic(nn.Module):
         layers.append(nn.Linear(input_dim, goal_dim))
         
         self.network = nn.Sequential(*layers)
+        
+        # Initialize weights properly for stable training
+        self._initialize_weights()
+    
+    def _initialize_weights(self):
+        """Initialize network weights using Xavier/He initialization"""
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                # Xavier uniform initialization
+                nn.init.xavier_uniform_(module.weight, gain=1.0)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0.0)
         
     def forward(self, state, action, goal, tau):
         """
@@ -145,6 +169,18 @@ class TDMCriticVectorized(nn.Module):
         layers.append(nn.Linear(input_dim, goal_dim))
         
         self.network = nn.Sequential(*layers)
+        
+        # Initialize weights properly for stable training
+        self._initialize_weights()
+    
+    def _initialize_weights(self):
+        """Initialize network weights using Xavier/He initialization"""
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                # Xavier uniform initialization
+                nn.init.xavier_uniform_(module.weight, gain=1.0)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0.0)
         
     def forward(self, state, action, goal, tau):
         """

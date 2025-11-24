@@ -1,4 +1,14 @@
 # Temporal Difference Models (TDM) Configuration
+# 
+# 이 파일은 Reacher-v5에 대한 기본 설정입니다.
+# 다른 환경을 사용하려면 다음 설정 파일을 사용하세요:
+#   - config_reacher.yaml (Reacher-v5)
+#   - config_pusher.yaml (Pusher-v5)
+#   - config_halfcheetah.yaml (HalfCheetah-v5)
+#   - config_ant.yaml (Ant-v5)
+#
+# 또는 train_with_curriculum.py 실행 시 --config 옵션으로 지정:
+#   python train_with_curriculum.py --config config_pusher.yaml
 
 # Environment settings
 env:
@@ -72,6 +82,14 @@ training:
   eval_episodes: 10
   patience: null  # Early stopping patience (null to disable, e.g., 10 means stop after 10 evals without improvement)
   
+  # Policy Collapse Detection
+  detect_policy_collapse: true  # Enable policy collapse detection
+  collapse_detection:
+    window_size: 5  # Number of recent evaluations to track
+    collapse_threshold: 0.3  # Performance degradation threshold (0.3 = 30% worse)
+    min_evaluations: 3  # Minimum evaluations before detecting collapse
+    stability_threshold: 0.5  # Coefficient of variation threshold for instability
+  
   # Curriculum Learning
   use_curriculum: true  # Enable curriculum learning
   curriculum:
@@ -104,4 +122,25 @@ logging:
 
 # Seed for reproducibility
 seed: 42
+
+# Population-based Training (PBT)
+pbt:
+  enabled: true  # PBT를 기본 학습 방법으로 사용
+  population_size: auto  # 동시에 실행할 개체 수 (auto: 자동 결정, 숫자: 수동 설정)
+  exploit_frequency: 10000  # 몇 스텝마다 exploit/explore 수행
+  exploit_threshold: 0.25  # 하위 25%를 교체
+  explore_perturbation: 0.2  # 하이퍼파라미터 변형 정도 (20%)
+  max_generations: 100  # 최대 세대 수
+  training_chunk: 5000  # 한 번에 학습할 스텝 수 (exploit/explore 주기보다 작아야 함)
+  use_parallel: true  # 병렬 실행 활성화 (빠른 결과 확인)
+  num_workers: null  # 병렬 워커 수 (null이면 자동 설정: min(population_size, cpu_count-1))
+  monitor_interval: 5  # 진행 상황 출력 간격 (초)
+  hyperparameter_ranges:  # 조정 가능한 하이퍼파라미터 범위
+    learning_rate_actor: [0.00005, 0.0003]
+    learning_rate_critic: [0.0005, 0.003]
+    tau_max: [15, 30]
+    batch_size: [64, 256]
+    updates_per_step: [5, 20]
+    noise_std: [0.1, 0.3]
+    reward_scale: [0.1, 10.0]
 
